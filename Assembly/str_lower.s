@@ -15,8 +15,8 @@ STR_LOWER:
 
 START_WHILE:
     xor  rax, rax                  # Set up rax.
-    mov  dil, byte [r14 -1]        # Set foo's argument.
-    mov  cl,  byte [r14 -1]        # For debuggin purposes.
+    mov  dil, byte ptr [r14]        # Set foo's argument.
+    mov  cl,  byte ptr [r14]        # For debuggin purposes.
     test dil, dil                  # Check if the byte is the null terminator.
     jz END                         # if so, jump to END.
 
@@ -26,8 +26,8 @@ START_WHILE:
     # Call foo if the byte is <= 'Z'
     mov rdx, 0x403000
     call rdx                       # Call foo
-    mov byte [r14 - 1], al         # Store the result back to [src_addr].
-    mov cl, byte [r14 - 1]         # For debuggin purposes.
+    mov byte ptr [r14], al         # Store the result back to [src_addr].
+    mov cl, byte ptr [r14]         # For debuggin purposes.
     inc r15                        # Increment the conversion counter.
 
 NEXT:
@@ -36,4 +36,4 @@ NEXT:
 
 END:
     mov rax, r15
-    ret                 
+    ret
