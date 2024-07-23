@@ -3,7 +3,7 @@ from scapy.all import Ether, ARP, srp
 # Define required params.
 interface = "eth0"
 operation = "is-at"
-src_mac = "10.0.0.2"
+src_ip = "10.0.0.2"
 dst_ip = "10.0.0.3"
 src_mac = "46:e9:55:93:81:53"
 dst_mac = "ff:ff:ff:ff:ff:ff"
