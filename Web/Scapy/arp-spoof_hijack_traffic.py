@@ -10,8 +10,7 @@ import threading
 # This script is intended solely for educational purposes and should only be used
 # in a controlled environment with explicit permission. Unauthorized use of this script
 # on networks or systems you do not own or have permission to test is illegal and unethical.
-# Always use your skills responsibly and ethically.
-# Happy Hacking!
+# Happy Hacking! (Always remember to practice ethical hacking and obtain permission before testing. Always remember to use your skills responsibly and ethically.)
 
 # Define a function to get the MAC address of the given IP.
 def get_mac(dst_ip, operation, interface, src_mac):
