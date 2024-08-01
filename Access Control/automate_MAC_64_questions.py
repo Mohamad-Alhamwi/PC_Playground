@@ -75,7 +75,7 @@ def main():
 
     while counter <= 65:
         if counter == 65:
-            line = process.stdout.read()
+            flag = process.stdout.read()
             break
 
         line = process.stdout.readline()
@@ -105,7 +105,7 @@ def main():
 
         counter = counter + 1
     
-    print(f"{line}")
+    print(f"{flag}")
 
 if __name__ == "__main__":
     main()
