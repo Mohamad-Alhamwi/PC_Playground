@@ -1,10 +1,6 @@
 .intel_syntax noprefix
 .globl _start
 
-.section .bss
-
-request_buffer: .skip 1024   # Allocate 1024 bytes for the request buffer.
-
 .section .data
 
 sockaddr_in:
@@ -13,6 +9,7 @@ sockaddr_in:
     .long  0x0               # sin_addr: 0.0.0.0 (INADDR_ANY).
     .zero  8                 # sin_zero: padding.
 
+request_buffer: .skip 1024   # Allocate 1024 bytes for the request buffer.
 http_response:           .asciz "HTTP/1.0 200 OK\r\n\r\n"
 file_path:               .skip 256
 file_buffer:             .skip 1024
@@ -79,104 +76,77 @@ _start:
                 mov rdi, listening_socket_fd
                 syscall
 
-        CLIENT_REQUSET_HANDLER:
-            READ_SOCKET:
-                mov rax, 0
-                mov rdi, client_socket_fd
-                lea rsi, [rip + request_buffer]
-                mov rdx, 1024
-                syscall
+            CLIENT_REQUSET_HANDLER:
+                READ_SOCKET:
+                    mov rax, 0
+                    mov rdi, client_socket_fd
+                    lea rsi, [rip + request_buffer]
+                    mov rdx, 1024
+                    syscall
             
-            EXTRACT_PATH:
-                lea rdi, [rip + request_buffer]     # Load the request buffer address into rdi.
-                mov r14, rdi                        # Back up the request buffer address.
-                lea rdx, [rip + file_path]          # Load the file path buffer address into rsi.
-                mov r15, rdx                        # Back up the file path buffer address.
+                EXTRACT_PATH:
+                    lea rdi, [rip + request_buffer]     # Load the request buffer address into rdi.
+                    lea rdx, [rip + file_path]          # Load the file path buffer address into rsi.
+                    call EXTRACT_FILE_PATH_GET
 
-                FIND_GET_PREFIX:
-                    cmp byte ptr [rdi], 'G'
-                    jne SKIP_CHAR
-                    cmp byte ptr [rdi + 1], 'E'
-                    jne SKIP_CHAR
-                    cmp byte ptr [rdi + 2], 'T'
-                    jne SKIP_CHAR
-                    cmp byte ptr [rdi + 3], ' '
-                    jne SKIP_CHAR
-                    add rdi, 4              # Move rdi past "GET ".
-                    jmp EXTRACT_LOOP
-
-                    SKIP_CHAR:
-                        inc rdi
-                        jmp FIND_GET_PREFIX
-
-                    jmp NOT_FOUND           # If "GET " not found, exit.
-
-                EXTRACT_LOOP:
-                    cmp byte ptr [rdi], ' '
-                    je EXTRACT_END          # If space is found, end of path.
-                    mov al, [rdi]
-                    mov [rdx], al
-                    inc rdi
-                    inc rdx
-                    jmp EXTRACT_LOOP
-
-                EXTRACT_END:
-                    mov byte ptr [rdx], 0       # Null-terminate the path string.
+                # Check the result.
+                test eax, eax                           # Get the result of the EXTRACT_FILE_PATH_GET call.
+                jnz EXIT_CHILD_WITH_ERROR               # If eax == 1, handle the not found case.
             
-            OPEN_FILE:
-                mov rax, 2
-                mov rdi, r15
-                mov rsi, 0
-                syscall
+                OPEN_FILE:
+                    mov rax, 2
+                    lea rdi, [rip + file_path]
+                    mov rsi, 0
+                    syscall
 
-            # Get the new file descriptor returned by the open() syscall.
-            mov requested_file_fd, rax
+                # Get the new file descriptor returned by the open() syscall.
+                mov requested_file_fd, rax
 
-            READ_FILE:
-                mov rax, 0
-                mov rdi, requested_file_fd
-                mov rsi, r15
-                mov rdx, 1024
-                syscall
+                READ_FILE:
+                    mov rax, 0
+                    mov rdi, requested_file_fd
+                    lea rsi, [rip + file_path]
+                    mov rdx, 1024
+                    syscall
 
-            # Get the length of the requested file.
-            mov requested_file_length, rax
+                # Get the length of the requested file.
+                mov requested_file_length, rax
 
-            CLOSE_FILE:
-                mov rax, 3
-                mov rdi, requested_file_fd
-                syscall
+                CLOSE_FILE:
+                    mov rax, 3
+                    mov rdi, requested_file_fd
+                    syscall
             
-            WRITE_SOCKET_RESPONSE_1:
-                mov rax, 1
-                mov rdi, client_socket_fd
-                lea rsi, [rip + http_response]
-                mov rdx, 19
-                syscall
+                WRITE_SOCKET_RESPONSE_1:
+                    mov rax, 1
+                    mov rdi, client_socket_fd
+                    lea rsi, [rip + http_response]
+                    mov rdx, 19
+                    syscall
 
-            WRITE_SOCKET_RESPONSE_2:
-                mov rax, 1
-                mov rdi, client_socket_fd
-                mov rsi, r15     
-                mov rdx, requested_file_length
-                syscall
+                WRITE_SOCKET_RESPONSE_2:
+                    mov rax, 1
+                    mov rdi, client_socket_fd
+                    lea rsi, [rip + file_path]   
+                    mov rdx, requested_file_length
+                    syscall
             
-            CLOSE_SOCKET:
-                mov rax, 3
-                mov rdi, client_socket_fd
-                syscall
-            
-            EXIT_CHILD:
-                # Exit the child process gracefully.
-                mov rax, 60
-                mov rdi, 0
-                syscall
-            
-            NOT_FOUND:
-                # Exit the child process with error.
-                mov rax, 60
-                mov rdi, 1
-                syscall
+                CLOSE_SOCKET:
+                    mov rax, 3
+                    mov rdi, client_socket_fd
+                    syscall
+                
+                EXIT_CHILD_GRACEFULLY:
+                    # Exit the child process gracefully.
+                    mov rax, 60
+                    mov rdi, 0
+                    syscall
+                
+                EXIT_CHILD_WITH_ERROR:
+                    # Exit the child process with error.
+                    mov rax, 60
+                    mov rdi, 1
+                    syscall
     
     FORK_ERROR:
         # Handle fork error
@@ -189,3 +159,38 @@ _start:
         mov rax, 60
         mov rdi, 0               # Exit the parent process gracefully.
         syscall
+
+    EXTRACT_FILE_PATH_GET:
+        FIND_GET_PREFIX:
+            cmp byte ptr [rdi], 'G'
+            jne SKIP_CHAR
+            cmp byte ptr [rdi + 1], 'E'
+            jne SKIP_CHAR
+            cmp byte ptr [rdi + 2], 'T'
+            jne SKIP_CHAR
+            cmp byte ptr [rdi + 3], ' '
+            jne SKIP_CHAR
+            add rdi, 4              # Move rdi past "GET ".
+            jmp EXTRACT_FILE_PATH_GET_LOOP
+
+            SKIP_CHAR:
+                inc rdi
+                jmp FIND_GET_PREFIX
+
+            NOT_FOUND:
+                mov eax, 1                            # Set return value to 1 (not found).
+                ret                                   # Return if "GET " is not found.
+            
+        EXTRACT_FILE_PATH_GET_LOOP:
+            cmp byte ptr [rdi], ' '
+            je EXTRACT_FILE_PATH_GET_END              # If space is found, end of path.
+            mov al, [rdi]
+            mov [rdx], al
+            inc rdi
+            inc rdx
+            jmp EXTRACT_FILE_PATH_GET_LOOP
+        
+        EXTRACT_FILE_PATH_GET_END:
+            mov byte ptr [rdx], 0                     # Null-terminate the path string.
+            mov eax, 0                                # Set return value to 0 (successful).
+            ret                                       # Return to the caller.
