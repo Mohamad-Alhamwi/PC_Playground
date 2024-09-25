@@ -10,7 +10,7 @@ def encrypt_RSA(plaintext, private_key, modules):
 
     return ciphertext
 
-ps = process("/challenge/run")
+ps = process("CHALLENGE_FILE")
 public_key = ""
 private_key = ""
 modules = ""
