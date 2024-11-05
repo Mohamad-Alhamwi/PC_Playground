@@ -1,0 +1,50 @@
+from pwn import *
+import json
+from Crypto.Random.random import getrandbits
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
+
+context(arch="amd64", os="linux", log_level="info")
+dhke_modules = ""
+dhke_base = ""
+dhke_client_public_key = ""
+dhke_server_private_key = getrandbits(2048)
+
+challenge_path = "CHALLENGE_FILE"
+ps = process(challenge_path)
+
+while True:
+    line = ps.recvline()
+
+    if b"p = " in line:
+        hex_dhke_modules = line.split(b"p = ")[-1].decode()
+        dhke_modules = int(hex_dhke_modules, 16)
+
+    elif b"g = " in line:
+        hex_dhke_base = line.split(b"g = ")[-1].decode()
+        dhke_base = int(hex_dhke_base, 16)
+    elif b"A = " in line:
+        hex_dhke_client_public_key = line.split(b"A = ")[-1].decode()
+        dhke_client_public_key = int(hex_dhke_client_public_key, 16)
+        break
+
+## So far so good.
+
+dhke_server_public_key = pow(dhke_base, dhke_server_private_key, dhke_modules)
+ps.sendlineafter(b"B? ",  hex(dhke_server_public_key).encode())
+
+## Get the flag.
+line = ps.recvline()
+encrypted_flag_b64 = line.split(b"Flag Ciphertext (b64): ")[-1].rstrip()
+encrypted_flag = base64.b64decode(encrypted_flag_b64)
+iv_part = encrypted_flag[:16]
+flag_part = encrypted_flag[16:]
+
+shared_secret = pow(dhke_client_public_key, dhke_server_private_key, dhke_modules)
+key = shared_secret.to_bytes(256, "little")[:16]
+cipher = AES.new(key = key, mode = AES.MODE_CBC, iv = iv_part)
+
+flag = unpad(cipher.decrypt(flag_part), cipher.block_size)
+print(f"Flag: {flag.decode()}")
+ps.interactive()
+
