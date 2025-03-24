@@ -10,10 +10,6 @@ GREEN = "\033[92m"
 RED = "\033[95m"
 RESET = "\033[0m"
 
-# pt = bytes.fromhex(input("Data? ").strip()) + flag
-# ct = cipher.encrypt(pad(pt, cipher.block_size))
-# print(f"Ciphertext: {ct.hex()}")
-
 def main():
     flag = ''
     print("\n")
@@ -44,9 +40,6 @@ def main():
             if blocks[0] == blocks[5]:
                 print(f"{RED}Found Character: {chr(ascii_value)}{RESET}")
                 flag = chr(ascii_value) + flag
-
-            # formatted = '     '.join(hex_temp_fragment[i:i+32] for i in range(0, len(hex_temp_fragment), 32))
-            # print(f"{formatted}:{counter}")
     
     print(f"\n{GREEN}{flag}{RESET}\n")
 
