@@ -1,0 +1,31 @@
+#!/bin/python3
+
+from pwn import *
+
+context.arch = 'amd64'
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
+
+challenge_file = "CHALLENGE_FILE"
+ps = process(challenge_file)
+GREEN = "\033[92m"
+RED = "\033[95m"
+RESET = "\033[0m"
+
+def main():    
+    line = ps.recvline().strip()
+    hex_key = line.split(b'AES Key (hex): ')[-1].decode().strip()
+    key = bytes.fromhex(hex_key)
+
+    line = ps.recvline().strip()
+    hex_ciphertext = line.split(b'Flag Ciphertext (hex): ')[-1].decode().strip()
+    ciphertext = bytes.fromhex(hex_ciphertext)
+    
+    iv = ciphertext[0:16]
+    cipher = AES.new(key=key, mode=AES.MODE_CBC, iv=iv)
+    decrypted_ciphertext = cipher.decrypt(ciphertext[16:])
+    flag = unpad(decrypted_ciphertext, cipher.block_size).strip().decode() 
+    print(f"\n{GREEN}{flag}{RESET}\n")
+
+if __name__ == "__main__":
+    main()
